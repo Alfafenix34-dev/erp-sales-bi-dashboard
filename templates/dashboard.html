@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Distribuidora HB · Control Comercial</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f1f5f9;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --primary: #1d4ed8;
+      --primary-soft: #eff6ff;
+      --green: #15803d;
+      --green-soft: #f0fdf4;
+      --red: #b91c1c;
+      --red-soft: #fef2f2;
+      --amber: #b45309;
+      --amber-soft: #fffbeb;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 13px;
+      -webkit-font-smoothing: antialiased;
+    }
+    h1, h2, .kpi .val {
+      font-family: 'Montserrat', 'Plus Jakarta Sans', sans-serif;
+      letter-spacing: -0.02em;
+    }
+    .container { max-width: 1460px; margin: 0 auto; padding: 18px; }
+    .topbar {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 14px;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+    }
+    .brand { display: flex; align-items: center; gap: 14px; }
+    .brand img { height: 44px; width: auto; object-fit: contain; }
+    .brand h1 { margin: 0; font-size: 16.5px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+    .brand p { margin: 3px 0 0; color: var(--muted); font-size: 12px; font-weight: 500; }
+    .badge-rol {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: #e0e7ff;
+      color: #3730a3;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    button, .btn {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      border: 1px solid var(--border);
+      background: #fff;
+      color: var(--text);
+      padding: 7px 13px;
+      border-radius: 9px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+    button:hover, .btn:hover { background: #f8fafc; transform: translateY(-1px); }
+    button:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+    .btn-blue { background: var(--primary-soft); color: var(--primary); border-color: #bfdbfe; }
+    .btn-green { background: var(--green-soft); color: var(--green); border-color: #bbf7d0; }
+    .btn-red { background: var(--red-soft); color: var(--red); border-color: #fecaca; }
+    .btn-solid { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .btn-solid:hover { background: #1e40af; }
+
+    .filters-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px 16px;
+      margin-bottom: 14px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+      gap: 10px;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+    }
+    .field label {
+      display: block;
+      font-size: 10.5px;
+      font-weight: 700;
+      color: var(--muted);
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .field select, .field input {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      width: 100%;
+      padding: 7px 9px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 12.5px;
+      font-weight: 500;
+      background: #fff;
+      color: var(--text);
+    }
+    .field select:focus, .field input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.1);
+    }
+
+    .kpis {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .kpi {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+    }
+    .kpi .label { font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
+    .kpi .val { font-size: 20px; font-weight: 800; margin-top: 5px; }
+    .kpi .sub { font-size: 11.5px; color: var(--muted); margin-top: 3px; font-weight: 500; }
+
+    .tabs {
+      display: flex;
+      gap: 7px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .tab-btn {
+      padding: 8px 15px;
+      border-radius: 9px;
+      border: 1px solid var(--border);
+      background: #fff;
+      font-weight: 600;
+    }
+    .tab-btn.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+      box-shadow: 0 2px 6px rgba(29, 78, 216, 0.25);
+    }
+
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 14px;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+    }
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .card-header h2 { margin: 0; font-size: 14.5px; font-weight: 700; }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(460px, 1fr));
+      gap: 14px;
+    }
+    .table-wrap { overflow-x: auto; max-height: 490px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    th, td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: left; }
+    th {
+      background: #f8fafc;
+      position: sticky;
+      top: 0;
+      font-weight: 700;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: var(--muted);
+      z-index: 1;
+    }
+    tr:hover td { background: #f8fafc; }
+    .num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+    .pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      background: #f1f5f9;
+      color: #334155;
+    }
+    .pill-ruta { background: #dcfce7; color: #166534; }
+    .pill-extra { background: #fef3c7; color: #92400e; }
+
+    .status-bar {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1e40af;
+      padding: 9px 14px;
+      border-radius: 9px;
+      margin-bottom: 12px;
+      display: none;
+      font-weight: 600;
+    }
+
+    .modal-bg {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.55);
+      z-index: 50;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .modal-bg.open { display: flex; }
+    .modal-box {
+      background: #fff;
+      border-radius: 14px;
+      max-width: 920px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="topbar">
+      <div class="brand">
+        {% if logo_existe %}
+        <img src="/static/logo_hb.png" alt="Distribuidora HB">
+        {% endif %}
+        <div>
+          <h1>
+            Distribuidora HB · Control Comercial
+            <span class="badge-rol">{{ user.rol|upper }} · {{ user.nombre }}</span>
+          </h1>
+          <p id="subtitulo-estado">Ventas Netas, Devoluciones (NC), Rutero y Cobertura de Cartera</p>
+        </div>
+      </div>
+      <div class="actions">
+        <button onclick="limpiarFiltros()">Limpiar filtros</button>
+        {% if user.rol == 'admin' %}
+        <button class="btn-blue" id="btn-ventas-ayer" onclick="extraer('ventas', 'ayer', this)">↻ Ventas Ayer</button>
+        <button class="btn-green" id="btn-ventas-hoy" onclick="extraer('ventas', 'diario', this)">↻ Ventas Hoy</button>
+        <button class="btn-red" id="btn-dev-ayer" onclick="extraer('devoluciones', 'ayer', this)">↻ Devoluciones (10 AM)</button>
+        <button onclick="abrirModalUsuarios()">Usuarios y Roles</button>
+        {% endif %}
+        <a class="btn" href="/cambiar_clave">Mi Clave</a>
+        <a class="btn" href="/logout">Salir</a>
+      </div>
+    </div>
+
+    <div id="status-bar" class="status-bar"></div>
+
+    <div class="filters-card">
+      <div class="field">
+        <label>Periodo</label>
+        <select id="f-periodo" onchange="cambiarPeriodo()">
+          <option value="dia" selected>Por Día</option>
+          <option value="mes">Por Mes</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Fecha / Mes</label>
+        <select id="f-valor-periodo" onchange="cargarDatos()"></select>
+      </div>
+      <div class="field">
+        <label>Día de Ruta</label>
+        <select id="f-dia-ruta" onchange="cargarDatos()">
+          <option value="AUTO" selected>Automático (Día de la fecha)</option>
+          <option value="">Todos los días (incl. Extrarruta)</option>
+          <option value="LUNES">LUNES</option>
+          <option value="MARTES">MARTES</option>
+          <option value="MIERCOLES">MIERCOLES</option>
+          <option value="JUEVES">JUEVES</option>
+          <option value="VIERNES">VIERNES</option>
+          <option value="SABADO">SABADO</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Grupo / Canal</label>
+        <select id="f-grupo" onchange="cargarDatos()">
+          <option value="">Todos los grupos</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Asesor</label>
+        <select id="f-asesor" onchange="cargarDatos()">
+          <option value="">Todos los asesores</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Marca</label>
+        <select id="f-marca" onchange="cargarDatos()">
+          <option value="">Todas las marcas</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Buscar Cliente</label>
+        <input type="text" id="f-cliente" placeholder="Código o nombre..." oninput="debounceCargar()">
+      </div>
+      <div class="field">
+        <label>Buscar Artículo</label>
+        <input type="text" id="f-articulo" placeholder="Código o producto..." oninput="debounceCargar()">
+      </div>
+    </div>
+
+    <div class="kpis">
+      <div class="kpi">
+        <div class="label">Venta Bruta</div>
+        <div class="val" id="k-bruta">$0</div>
+        <div class="sub" id="k-unidades">0 unidades</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Devoluciones (NC)</div>
+        <div class="val" style="color:var(--red)" id="k-dev">$0</div>
+        <div class="sub" id="k-pct-dev">0.0% sobre venta</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Venta Neta Real</div>
+        <div class="val" style="color:var(--green)" id="k-neta">$0</div>
+        <div class="sub" id="k-ticket">Ticket prom: $0</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Clientes Atendidos</div>
+        <div class="val" style="color:var(--primary)" id="k-atendidos">0</div>
+        <div class="sub" id="k-cobertura">Cobertura: 0.0%</div>
+      </div>
+      <div class="kpi">
+        <div class="label">No Atendidos (Rutero)</div>
+        <div class="val" style="color:var(--amber)" id="k-no-atendidos">0</div>
+        <div class="sub" id="k-ruta-activa">Filtro día: Automático</div>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" onclick="verTab('tab-resumen', this)">Resumen Ejecutivo</button>
+      <button class="tab-btn" onclick="verTab('tab-atendidos', this)">Clientes Atendidos (Detalle)</button>
+      <button class="tab-btn" onclick="verTab('tab-no-atendidos', this)">No Atendidos (Rutero)</button>
+      <button class="tab-btn" onclick="verTab('tab-devoluciones', this)">Devoluciones (NC)</button>
+      <button class="tab-btn" onclick="verTab('tab-productos', this)">Top Productos</button>
+    </div>
+
+    <div id="tab-resumen" class="panel active">
+      <div class="card">
+        <div class="card-header">
+          <h2>Desglose por Día de Ruta, Grupo y Asesor</h2>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Día Ruta</th>
+                <th>Grupo</th>
+                <th>Asesor</th>
+                <th class="num">Clientes Atendidos</th>
+                <th class="num">Unidades</th>
+                <th class="num">Venta Bruta</th>
+              </tr>
+            </thead>
+            <tbody id="tb-resumen-detallado"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header"><h2>Ranking por Asesor</h2></div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Asesor</th>
+                  <th class="num">Clientes</th>
+                  <th class="num">Drop</th>
+                  <th class="num">Venta</th>
+                  <th class="num">Dev.</th>
+                  <th class="num">% Dev</th>
+                </tr>
+              </thead>
+              <tbody id="tb-asesores"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h2>Ventas por Marca</h2></div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Marca</th>
+                  <th class="num">Unidades</th>
+                  <th class="num">Total Venta</th>
+                </tr>
+              </thead>
+              <tbody id="tb-marcas"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-atendidos" class="panel">
+      <div class="card">
+        <div class="card-header">
+          <h2>Clientes Atendidos (Detallado por Día de Ruta, Grupo y Marcas)</h2>
+          <button class="btn-green" onclick="exportarExcel('atendidos')">⬇ Descargar Excel Atendidos</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Día Ruta</th>
+                <th>Grupo</th>
+                <th>Asesor</th>
+                <th>Cód. Cliente</th>
+                <th>Cliente</th>
+                <th>Marcas Compradas</th>
+                <th class="num">Refs</th>
+                <th class="num">Unidades</th>
+                <th class="num">Total Venta</th>
+              </tr>
+            </thead>
+            <tbody id="tb-atendidos"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-no-atendidos" class="panel">
+      <div class="card">
+        <div class="card-header">
+          <h2>Clientes Programados No Atendidos</h2>
+          <button class="btn-blue" onclick="exportarExcel('no_atendidos')">⬇ Descargar Excel No Atendidos</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Día</th>
+                <th>Grupo</th>
+                <th>Asesor</th>
+                <th>Cód.</th>
+                <th>Cliente</th>
+                <th>Barrio / Dirección</th>
+                <th>Teléfono</th>
+              </tr>
+            </thead>
+            <tbody id="tb-no-atendidos"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-devoluciones" class="panel">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header"><h2>Motivos de Devolución</h2></div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Motivo</th>
+                  <th class="num">Notas</th>
+                  <th class="num">Unidades</th>
+                  <th class="num">Total NC</th>
+                </tr>
+              </thead>
+              <tbody id="tb-motivos"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <h2>Detalle Notas Crédito</h2>
+            <button class="btn-red" onclick="exportarExcel('devoluciones')">⬇ Descargar Excel Devoluciones</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Asesor</th>
+                  <th>Cliente</th>
+                  <th>Artículo</th>
+                  <th>Motivo</th>
+                  <th class="num">Total</th>
+                </tr>
+              </thead>
+              <tbody id="tb-dev-detalle"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-productos" class="panel">
+      <div class="card">
+        <div class="card-header"><h2>Top Referencias Facturadas</h2></div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Artículo</th>
+                <th>Marca</th>
+                <th>Grupo</th>
+                <th class="num">Clientes</th>
+                <th class="num">Unidades</th>
+                <th class="num">Total Venta</th>
+              </tr>
+            </thead>
+            <tbody id="tb-productos"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if user.rol == 'admin' %}
+  <div id="modal-usuarios" class="modal-bg">
+    <div class="modal-box">
+      <div class="card-header">
+        <h2>Gestión de Usuarios y Roles</h2>
+        <div class="actions">
+          <button class="btn-blue" onclick="generarMasivoAsesores()">Generar Asesores desde Maestra</button>
+          <a class="btn-green" href="/api/usuarios/exportar_excel">⬇ Credenciales Excel</a>
+          <button onclick="cerrarModalUsuarios()">Cerrar</button>
+        </div>
+      </div>
+      <div class="filters-card" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));">
+        <input type="hidden" id="u-id">
+        <div class="field"><label>Usuario</label><input id="u-username" placeholder="ej. jperez"></div>
+        <div class="field"><label>Nombre</label><input id="u-nombre" placeholder="Nombre completo"></div>
+        <div class="field">
+          <label>Rol</label>
+          <select id="u-rol">
+            <option value="asesor">Asesor</option>
+            <option value="supervisor">Supervisor</option>
+            <option value="admin">Administrador</option>
+          </select>
+        </div>
+        <div class="field"><label>Asesor Abako (Exacto)</label><input id="u-asesor" placeholder="NOMBRE EN ABAKO"></div>
+        <div class="field"><label>Grupos (separados por coma)</label><input id="u-grupos" placeholder="GRUPO 1, GRUPO 2"></div>
+        <div class="field"><label>Clave Temporal (Opcional)</label><input id="u-clave" placeholder="Dejar vacío para auto"></div>
+        <div class="field" style="display:flex;align-items:flex-end;">
+          <button class="btn-solid" style="width:100%" onclick="guardarUsuario()">Guardar Usuario</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Usuario</th>
+              <th>Nombre</th>
+              <th>Rol</th>
+              <th>Asesor / Grupos</th>
+              <th>Clave Temp.</th>
+              <th>Acción</th>
+            </tr>
+          </thead>
+          <tbody id="tb-usuarios"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <script>
+    let _timer = null;
+    let _fechasDisp = [];
+    let _mesesDisp = [];
+
+    const fmtCOP = v => "$" + Math.round(Number(v || 0)).toLocaleString("es-CO");
+    const fmtNum = v => Number(v || 0).toLocaleString("es-CO");
+
+    function mostrarEstado(msg, esError = false) {
+      const bar = document.getElementById("status-bar");
+      bar.style.display = "block";
+      bar.style.background = esError ? "#fef2f2" : "#eff6ff";
+      bar.style.borderColor = esError ? "#fecaca" : "#bfdbfe";
+      bar.style.color = esError ? "#b91c1c" : "#1e40af";
+      bar.textContent = msg;
+    }
+
+    function verTab(id, btn) {
+      document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+      document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+      document.getElementById(id).classList.add("active");
+      btn.classList.add("active");
+    }
+
+    function debounceCargar() {
+      clearTimeout(_timer);
+      _timer = setTimeout(cargarDatos, 300);
+    }
+
+    function cambiarPeriodo() {
+      const periodo = document.getElementById("f-periodo").value;
+      const sel = document.getElementById("f-valor-periodo");
+      const lista = periodo === "mes" ? _mesesDisp : _fechasDisp;
+      sel.innerHTML = lista.map(x => `<option value="${x}">${x}</option>`).join("");
+      cargarDatos();
+    }
+
+    function limpiarFiltros() {
+      document.getElementById("f-dia-ruta").value = "AUTO";
+      document.getElementById("f-grupo").value = "";
+      document.getElementById("f-asesor").value = "";
+      document.getElementById("f-marca").value = "";
+      document.getElementById("f-cliente").value = "";
+      document.getElementById("f-articulo").value = "";
+      cargarDatos();
+    }
+
+    function obtenerQueryParams() {
+      const p = new URLSearchParams({
+        periodo: document.getElementById("f-periodo").value,
+        valor_periodo: document.getElementById("f-valor-periodo").value,
+        dia_ruta: document.getElementById("f-dia-ruta").value,
+        grupo: document.getElementById("f-grupo").value,
+        asesor: document.getElementById("f-asesor").value,
+        marca: document.getElementById("f-marca").value,
+        cliente: document.getElementById("f-cliente").value,
+        articulo: document.getElementById("f-articulo").value,
+      });
+      return p.toString();
+    }
+
+    function exportarExcel(tipo) {
+      window.location.href = `/api/exportar/${tipo}?` + obtenerQueryParams();
+    }
+
+    function poblarSelect(id, opciones, labelTodos) {
+      const sel = document.getElementById(id);
+      const actual = sel.value;
+      sel.innerHTML = `<option value="">${labelTodos}</option>` +
+        opciones.map(o => `<option value="${o}">${o}</option>`).join("");
+      if (opciones.includes(actual)) sel.value = actual;
+    }
+
+    async function cargarDatos() {
+      const res = await fetch("/api/datos?" + obtenerQueryParams());
+      if (res.status === 401) { window.location.href = "/login"; return; }
+      const d = await res.json();
+      if (d.vacio) {
+        mostrarEstado("No hay reportes descargados aún. Usa 'Ventas Ayer' o 'Ventas Hoy' para extraer desde Abako.", true);
+        return;
+      }
+
+      _fechasDisp = d.fechas_disp || [];
+      _mesesDisp = d.meses_disp || [];
+      const selVal = document.getElementById("f-valor-periodo");
+      const periodo = document.getElementById("f-periodo").value;
+      const lista = periodo === "mes" ? _mesesDisp : _fechasDisp;
+      if (!selVal.options.length) {
+        selVal.innerHTML = lista.map(x => `<option value="${x}">${x}</option>`).join("");
+      }
+      if (d.target_actual) selVal.value = d.target_actual;
+
+      poblarSelect("f-grupo", d.opciones.grupos || [], "Todos los grupos");
+      poblarSelect("f-asesor", d.opciones.asesores || [], "Todos los asesores");
+      poblarSelect("f-marca", d.opciones.marcas || [], "Todas las marcas");
+
+      const k = d.kpis;
+      document.getElementById("k-bruta").textContent = fmtCOP(k.venta_bruta);
+      document.getElementById("k-unidades").textContent = `${fmtNum(k.unidades_total)} unidades`;
+      document.getElementById("k-dev").textContent = fmtCOP(k.devolucion_total);
+      document.getElementById("k-pct-dev").textContent = `${k.pct_devolucion.toFixed(1)}% sobre venta (${fmtNum(k.unidades_dev)} und)`;
+      document.getElementById("k-neta").textContent = fmtCOP(k.venta_neta_real);
+      document.getElementById("k-ticket").textContent = `Ticket prom: ${fmtCOP(k.ticket_promedio)}`;
+      document.getElementById("k-atendidos").textContent = fmtNum(k.clientes_atendidos);
+      document.getElementById("k-cobertura").textContent = `Cobertura cartera: ${k.cobertura_pct.toFixed(1)}%`;
+      document.getElementById("k-no-atendidos").textContent = fmtNum(k.total_no_atendidos);
+      document.getElementById("k-ruta-activa").textContent = `Corte: ${d.target_actual} · Ruta: ${d.dia_ruta_efectivo || "TODAS"}`;
+
+      document.getElementById("tb-resumen-detallado").innerHTML = (d.resumen_detallado || []).map(r => `
+        <tr>
+          <td><span class="pill ${r.DiaRuta === 'FUERA DE RUTA' ? 'pill-extra' : 'pill-ruta'}">${r.DiaRuta}</span></td>
+          <td>${r.GrupoRuta || "—"}</td>
+          <td><strong>${r.Asesor}</strong></td>
+          <td class="num">${fmtNum(r.ClientesAtendidos)}</td>
+          <td class="num">${fmtNum(r.Unidades)}</td>
+          <td class="num"><strong>${fmtCOP(r.Venta)}</strong></td>
+        </tr>
+      `).join("") || `<tr><td colspan="6">Sin registros para los filtros seleccionados.</td></tr>`;
+
+      document.getElementById("tb-asesores").innerHTML = (d.top_asesores || []).map(r => `
+        <tr>
+          <td><strong>${r.Asesor}</strong></td>
+          <td class="num">${fmtNum(r.Clientes)}</td>
+          <td class="num">${r.DropSize.toFixed(1)}</td>
+          <td class="num">${fmtCOP(r.Venta)}</td>
+          <td class="num" style="color:var(--red)">${fmtCOP(r.Devolucion)}</td>
+          <td class="num">${r.PctDev.toFixed(1)}%</td>
+        </tr>
+      `).join("");
+
+      document.getElementById("tb-marcas").innerHTML = (d.por_marca || []).map(r => `
+        <tr>
+          <td><strong>${r.Marca || "SIN MARCA"}</strong></td>
+          <td class="num">${fmtNum(r.Unidades)}</td>
+          <td class="num">${fmtCOP(r.Total)}</td>
+        </tr>
+      `).join("");
+
+      document.getElementById("tb-atendidos").innerHTML = (d.asesor_cliente || []).map(r => `
+        <tr>
+          <td><span class="pill ${r.DiaRuta === 'FUERA DE RUTA' ? 'pill-extra' : 'pill-ruta'}">${r.DiaRuta}</span></td>
+          <td>${r.Grupo || "—"}</td>
+          <td>${r.Asesor}</td>
+          <td>${r["Código Cliente"]}</td>
+          <td><strong>${r.Cliente}</strong></td>
+          <td><span class="pill">${r.Marcas || "—"}</span></td>
+          <td class="num">${fmtNum(r.Referencias)}</td>
+          <td class="num">${fmtNum(r.Unidades)}</td>
+          <td class="num"><strong>${fmtCOP(r.Total)}</strong></td>
+        </tr>
+      `).join("") || `<tr><td colspan="9">No hay clientes atendidos con los filtros actuales.</td></tr>`;
+
+      document.getElementById("tb-no-atendidos").innerHTML = (d.no_atendidos || []).map(r => `
+        <tr>
+          <td><span class="pill">${r["Día"] || "—"}</span></td>
+          <td>${r["Grupo Maestra"] || "—"}</td>
+          <td>${r.Asesor}</td>
+          <td>${r["Código Cliente"]}</td>
+          <td><strong>${r.Cliente}</strong></td>
+          <td>${r.Barrio || ""} ${r["Dirección"] ? "· " + r["Dirección"] : ""}</td>
+          <td>${r.WA ? `<a class="btn-green btn" target="_blank" href="https://wa.me/${r.WA}">WhatsApp</a>` : (r["Teléfono"] || "—")}</td>
+        </tr>
+      `).join("") || `<tr><td colspan="7">Sin clientes pendientes por atender en esta selección.</td></tr>`;
+
+      document.getElementById("tb-motivos").innerHTML = (d.motivos_dev || []).map(r => `
+        <tr>
+          <td><strong>${r.MotivoClean}</strong></td>
+          <td class="num">${fmtNum(r.Notas)}</td>
+          <td class="num">${fmtNum(r.Unidades)}</td>
+          <td class="num" style="color:var(--red)">${fmtCOP(r.Total)}</td>
+        </tr>
+      `).join("") || `<tr><td colspan="4">Sin devoluciones registradas.</td></tr>`;
+
+      document.getElementById("tb-dev-detalle").innerHTML = (d.dev_detalle || []).map(r => `
+        <tr>
+          <td>${r.Asesor}</td>
+          <td>${r.Cliente || r["Código Cliente"]}</td>
+          <td>${r["Artículo"]}</td>
+          <td><span class="pill">${r.Motivo || "—"}</span></td>
+          <td class="num" style="color:var(--red)">${fmtCOP(r.Total)}</td>
+        </tr>
+      `).join("") || `<tr><td colspan="5">Sin notas crédito para mostrar.</td></tr>`;
+
+      document.getElementById("tb-productos").innerHTML = (d.top_productos || []).map(r => `
+        <tr>
+          <td>${r["Código Artículo"]}</td>
+          <td><strong>${r["Descripción Artículo"]}</strong></td>
+          <td>${r.Marca}</td>
+          <td>${r.Grupo}</td>
+          <td class="num">${fmtNum(r.Clientes)}</td>
+          <td class="num">${fmtNum(r.Unidades)}</td>
+          <td class="num"><strong>${fmtCOP(r.Total)}</strong></td>
+        </tr>
+      `).join("");
+    }
+
+    async function extraer(tipo, modo, btn) {
+      const txtOrig = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = "Extrayendo...";
+      mostrarEstado(`Conectando a Abako ERP para descargar ${tipo.toUpperCase()} (${modo})... No cierres esta ventana.`);
+      try {
+        const res = await fetch("/api/extraer", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tipo, modo }),
+        });
+        const data = await res.json();
+        if (data.ok) {
+          mostrarEstado(data.msg);
+          document.getElementById("f-valor-periodo").innerHTML = "";
+          await cargarDatos();
+        } else {
+          mostrarEstado(data.msg || "Error en extracción", true);
+        }
+      } catch (e) {
+        mostrarEstado("Error de conexión con el servidor local: " + e.message, true);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = txtOrig;
+      }
+    }
+
+    async function abrirModalUsuarios() {
+      document.getElementById("modal-usuarios").classList.add("open");
+      const res = await fetch("/api/usuarios");
+      const data = await res.json();
+      document.getElementById("tb-usuarios").innerHTML = (data.usuarios || []).map(u => `
+        <tr>
+          <td><strong>${u.username}</strong></td>
+          <td>${u.nombre}</td>
+          <td>${u.rol.toUpperCase()}</td>
+          <td>${u.asesor_abako || (u.grupos || []).join(", ") || "TODOS"}</td>
+          <td>${u.clave_temporal || "—"}</td>
+          <td><button class="btn-red" onclick="eliminarUsuario(${u.id})">Eliminar</button></td>
+        </tr>
+      `).join("");
+    }
+
+    function cerrarModalUsuarios() {
+      document.getElementById("modal-usuarios").classList.remove("open");
+    }
+
+    async function guardarUsuario() {
+      const payload = {
+        username: document.getElementById("u-username").value.trim(),
+        nombre: document.getElementById("u-nombre").value.trim(),
+        rol: document.getElementById("u-rol").value,
+        asesor_abako: document.getElementById("u-asesor").value.trim(),
+        grupos: document.getElementById("u-grupos").value.split(",").map(x => x.trim()).filter(Boolean),
+        password: document.getElementById("u-clave").value.trim(),
+      };
+      await fetch("/api/usuarios", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      abrirModalUsuarios();
+    }
+
+    async function generarMasivoAsesores() {
+      const res = await fetch("/api/usuarios/masivo_asesores", { method: "POST" });
+      const d = await res.json();
+      alert(`Se generaron ${d.creados || 0} usuarios nuevos desde MAESTRA_HB.`);
+      abrirModalUsuarios();
+    }
+
+    async function eliminarUsuario(id) {
+      if (!confirm("¿Eliminar este usuario?")) return;
+      await fetch(`/api/usuarios/${id}`, { method: "DELETE" });
+      abrirModalUsuarios();
+    }
+
+    cargarDatos();
+  </script>
+</body>
+</html>

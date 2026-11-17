@@ -1,0 +1,11 @@
+.env
+*.db
+*.sqlite
+*.sqlite3
+__pycache__/
+*.XLS
+*.xlsx
+!MAESTRA_HB.xlsx
+!Ventas_Netas_HB_*.xlsx
+!Devoluciones_HB_*.xlsx
+cloudflared.exe
