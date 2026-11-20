@@ -3,6 +3,7 @@ import os
 import re
 import time
 import glob
+import calendar
 import traceback
 from datetime import datetime
 import pandas as pd
@@ -106,6 +107,44 @@ def limpiar_telefono_wa(tel):
 
 def construir_llave_ac(df):
     return df["Asesor"].astype(str) + "||" + df["Código Cliente"].astype(str)
+
+
+def calcular_metricas_dias_habiles(periodo_mes):
+    try:
+        anio, mes = map(int, periodo_mes.split("-"))
+    except Exception:
+        hoy_dt = datetime.now()
+        anio, mes = hoy_dt.year, hoy_dt.month
+        periodo_mes = f"{anio:04d}-{mes:02d}"
+
+    ultimo_dia = calendar.monthrange(anio, mes)[1]
+    hoy = datetime.now().date()
+    es_mes_actual = (hoy.year == anio and hoy.month == mes)
+    festivos = getattr(rpa, "FESTIVOS_CO", set())
+
+    habiles_totales = 0
+    habiles_transcurridos = 0
+    fechas_habiles = []
+
+    for dia_num in range(1, ultimo_dia + 1):
+        fecha_actual = datetime(anio, mes, dia_num).date()
+        fecha_str = fecha_actual.strftime("%Y-%m-%d")
+        if fecha_actual.weekday() == 6 or fecha_str in festivos:
+            continue
+        habiles_totales += 1
+        fechas_habiles.append(fecha_str)
+        if not es_mes_actual or fecha_actual <= hoy:
+            habiles_transcurridos += 1
+
+    habiles_restantes = max(0, habiles_totales - habiles_transcurridos)
+    return {
+        "periodo_mes": periodo_mes,
+        "habiles_totales": habiles_totales,
+        "habiles_transcurridos": habiles_transcurridos,
+        "habiles_restantes": habiles_restantes,
+        "pct_tiempo": (habiles_transcurridos / habiles_totales * 100) if habiles_totales > 0 else 100.0,
+        "fechas_habiles": fechas_habiles,
+    }
 
 
 def cargar_archivos_por_prefijo(prefijo, cols_esperadas):
@@ -397,8 +436,10 @@ def construir_dataset_filtrado(args, user):
     mapa_nombres = {}
     mapa_grupo_ac = {}
     mapa_grupo_asesor = {}
+    mapa_tel_cliente = {}
     if not df_m_raw.empty:
         mapa_nombres.update(dict(zip(df_m_raw["Código Cliente"], df_m_raw["Cliente"])))
+        mapa_tel_cliente.update(dict(zip(df_m_raw["Código Cliente"], df_m_raw["Teléfono"])))
         grp_ac_m = df_m_raw.groupby("LlaveAC", as_index=False).agg(
             {"Grupo Maestra": "first"}
         )
@@ -415,7 +456,6 @@ def construir_dataset_filtrado(args, user):
             dict(zip(valid_d["Código Cliente"], valid_d["Cliente"].astype(str)))
         )
 
-    # Día exacto de la fecha consultada (ej. 2026-11-14 -> SABADO)
     dia_fecha_actual = ""
     if periodo == "dia":
         try:
@@ -425,14 +465,12 @@ def construir_dataset_filtrado(args, user):
         except Exception:
             dia_fecha_actual = ""
 
-    # Para No Atendidos: si está en AUTO o vacío en vista diaria, usa el día de la fecha consultada
     dia_rutero_no_atendidos = ""
     if dia_ruta == "AUTO":
         dia_rutero_no_atendidos = dia_fecha_actual
     elif dia_ruta:
         dia_rutero_no_atendidos = dia_ruta
 
-    # 1. Filtrado por Grupo Organizacional del Asesor
     if grupo and not df_m_raw.empty:
         asesores_del_grupo = set(
             df_m_raw[df_m_raw["Grupo Maestra"] == grupo]["Asesor"].unique()
@@ -440,16 +478,12 @@ def construir_dataset_filtrado(args, user):
         v_f = v_f[v_f["Asesor"].isin(asesores_del_grupo)]
         d_f = d_f[d_f["Asesor"].isin(asesores_del_grupo)]
 
-    # 2. Filtrado por Asesor
     if asesor:
         v_f = v_f[v_f["Asesor"] == asesor]
         d_f = d_f[d_f["Asesor"] == asesor]
 
-    # 3. Filtrado por Marca de producto facturado
     if marca:
         v_f = v_f[v_f["Marca"] == marca]
-
-    # Nota: v_f y d_f conservan TODO lo facturado en la fecha sin recortar por el día de la Maestra.
 
     if cliente:
         cods_match = {
@@ -529,6 +563,74 @@ def construir_dataset_filtrado(args, user):
             else 0.0
         )
 
+    # Analítica Gerencial: Comparativo MoM a igual número de días hábiles y Clientes en Riesgo
+    periodo_mes_ref = str(target)[:7]
+    info_habiles = calcular_metricas_dias_habiles(periodo_mes_ref)
+
+    v_mes_actual = df_v[df_v["Mes"] == periodo_mes_ref].copy()
+    d_mes_actual = df_d[df_d["Mes"] == periodo_mes_ref].copy()
+    if grupo and not df_m_raw.empty:
+        asesores_del_grupo = set(df_m_raw[df_m_raw["Grupo Maestra"] == grupo]["Asesor"].unique())
+        v_mes_actual = v_mes_actual[v_mes_actual["Asesor"].isin(asesores_del_grupo)]
+        d_mes_actual = d_mes_actual[d_mes_actual["Asesor"].isin(asesores_del_grupo)]
+    if asesor:
+        v_mes_actual = v_mes_actual[v_mes_actual["Asesor"] == asesor]
+        d_mes_actual = d_mes_actual[d_mes_actual["Asesor"] == asesor]
+
+    # Comparativo Mes Anterior (MoM) a corte equivalente de días hábiles
+    anio_ref, mes_ref = map(int, periodo_mes_ref.split("-"))
+    anio_ant = anio_ref - 1 if mes_ref == 1 else anio_ref
+    mes_ant = 12 if mes_ref == 1 else mes_ref - 1
+    periodo_mes_ant = f"{anio_ant:04d}-{mes_ant:02d}"
+    hab_ant = calcular_metricas_dias_habiles(periodo_mes_ant)
+    fechas_corte_ant = set(hab_ant["fechas_habiles"][: info_habiles["habiles_transcurridos"]])
+
+    v_ant = df_v[df_v["Fecha"].isin(fechas_corte_ant)].copy()
+    d_ant = df_d[df_d["Fecha"].isin(fechas_corte_ant)].copy()
+    if grupo and not df_m_raw.empty:
+        asesores_del_grupo = set(df_m_raw[df_m_raw["Grupo Maestra"] == grupo]["Asesor"].unique())
+        v_ant = v_ant[v_ant["Asesor"].isin(asesores_del_grupo)]
+        d_ant = d_ant[d_ant["Asesor"].isin(asesores_del_grupo)]
+    if asesor:
+        v_ant = v_ant[v_ant["Asesor"] == asesor]
+        d_ant = d_ant[d_ant["Asesor"] == asesor]
+
+    neta_mes_act = float(v_mes_actual["Total"].sum()) - float(d_mes_actual["Total"].sum())
+    neta_mes_ant = float(v_ant["Total"].sum()) - float(d_ant["Total"].sum())
+    variacion_mom_pct = (
+        ((neta_mes_act - neta_mes_ant) / neta_mes_ant * 100) if neta_mes_ant > 0 else 0.0
+    )
+
+    # Clientes en Riesgo (Compraron en historial pero llevan >= 15 días sin facturar)
+    clientes_riesgo_df = pd.DataFrame()
+    if not df_v.empty:
+        v_hist = df_v.copy()
+        if grupo and not df_m_raw.empty:
+            asesores_del_grupo = set(df_m_raw[df_m_raw["Grupo Maestra"] == grupo]["Asesor"].unique())
+            v_hist = v_hist[v_hist["Asesor"].isin(asesores_del_grupo)]
+        if asesor:
+            v_hist = v_hist[v_hist["Asesor"] == asesor]
+
+        fecha_max_dt = datetime.strptime(fechas_disp[0], "%Y-%m-%d").date()
+        riesgo_grp = (
+            v_hist.groupby(["Asesor", "Código Cliente"], as_index=False)
+            .agg(
+                UltimaCompra=("Fecha", "max"),
+                Pedidos=("Fecha", "nunique"),
+                VentaHistorica=("Total", "sum"),
+            )
+        )
+        riesgo_grp["DiasSinCompra"] = riesgo_grp["UltimaCompra"].apply(
+            lambda f: (fecha_max_dt - datetime.strptime(f, "%Y-%m-%d").date()).days
+        )
+        riesgo_grp = riesgo_grp[riesgo_grp["DiasSinCompra"] >= 15].copy()
+        if not riesgo_grp.empty:
+            riesgo_grp["Cliente"] = riesgo_grp["Código Cliente"].map(mapa_nombres).fillna("—")
+            riesgo_grp["Grupo"] = riesgo_grp["Asesor"].map(mapa_grupo_asesor).fillna("SIN GRUPO")
+            riesgo_grp["TicketHist"] = riesgo_grp["VentaHistorica"] / riesgo_grp["Pedidos"].clip(lower=1)
+            riesgo_grp["WA"] = riesgo_grp["Código Cliente"].map(mapa_tel_cliente).apply(limpiar_telefono_wa)
+            clientes_riesgo_df = riesgo_grp.sort_values("VentaHistorica", ascending=False)
+
     return {
         "vacio": False,
         "fechas_disp": fechas_disp,
@@ -538,8 +640,11 @@ def construir_dataset_filtrado(args, user):
         "dia_ruta_efectivo": dia_rutero_no_atendidos,
         "v_f": v_f,
         "d_f": d_f,
+        "v_mes_actual": v_mes_actual,
+        "d_mes_actual": d_mes_actual,
         "m_agrup": m_agrup,
         "no_atendidos_df": no_atendidos_df,
+        "clientes_riesgo_df": clientes_riesgo_df,
         "tiene_maestra": tiene_maestra,
         "asesores_opt": asesores_opt,
         "marcas_opt": marcas_opt,
@@ -550,7 +655,66 @@ def construir_dataset_filtrado(args, user):
         "clientes_atendidos": clientes_atendidos_count,
         "total_no_atendidos": total_no_atendidos,
         "cobertura_pct": cobertura_pct,
+        "info_habiles": {k: v for k, v in info_habiles.items() if k != "fechas_habiles"},
+        "mom": {
+            "periodo_actual": periodo_mes_ref,
+            "periodo_anterior": periodo_mes_ant,
+            "neta_actual": neta_mes_act,
+            "neta_anterior": neta_mes_ant,
+            "variacion_pct": variacion_mom_pct,
+            "tiene_base_anterior": neta_mes_ant > 0,
+        },
     }
+
+
+def calcular_tabla_cumplimiento(ds):
+    periodo_mes_ref = ds["info_habiles"]["periodo_mes"]
+    info_habiles = ds["info_habiles"]
+    metas_mes = db.obtener_metas_mes(periodo_mes_ref)
+
+    v_mes = ds["v_mes_actual"]
+    d_mes = ds["d_mes_actual"]
+
+    ventas_ase = v_mes.groupby("Asesor")["Total"].sum().to_dict() if not v_mes.empty else {}
+    devs_ase = d_mes.groupby("Asesor")["Total"].sum().to_dict() if not d_mes.empty else {}
+
+    todos_asesores = sorted(set(list(metas_mes.keys()) + list(ventas_ase.keys()) + list(devs_ase.keys())))
+    filas = []
+
+    for ase in todos_asesores:
+        v_bruta = float(ventas_ase.get(ase, 0.0))
+        v_dev = float(devs_ase.get(ase, 0.0))
+        venta_neta = v_bruta - v_dev
+        cuota = float(metas_mes.get(ase.upper(), 0.0))
+        pct_cumpl = (venta_neta / cuota * 100) if cuota > 0 else 0.0
+        prom_diario = (
+            (venta_neta / info_habiles["habiles_transcurridos"])
+            if info_habiles["habiles_transcurridos"] > 0
+            else 0.0
+        )
+        proyeccion = prom_diario * info_habiles["habiles_totales"]
+        pct_proy = (proyeccion / cuota * 100) if cuota > 0 else 0.0
+        faltante = max(0.0, cuota - venta_neta)
+        req_diario = (
+            (faltante / info_habiles["habiles_restantes"])
+            if info_habiles["habiles_restantes"] > 0
+            else faltante
+        )
+        filas.append({
+            "Asesor": ase,
+            "Grupo": ds["mapa_grupo_asesor"].get(ase, "SIN GRUPO"),
+            "Cuota": cuota,
+            "VentaNeta": venta_neta,
+            "PctCumplimiento": pct_cumpl,
+            "PromDiario": prom_diario,
+            "ProyeccionCierre": proyeccion,
+            "PctProyectado": pct_proy,
+            "Faltante": faltante,
+            "RequeridoDiario": req_diario,
+        })
+
+    filas.sort(key=lambda x: (x["Cuota"] > 0, x["VentaNeta"]), reverse=True)
+    return filas
 
 
 @app.route("/api/datos")
@@ -725,6 +889,11 @@ def api_datos():
         else []
     )
 
+    cumplimiento_asesores = calcular_tabla_cumplimiento(ds)
+    cuota_total_global = sum(x["Cuota"] for x in cumplimiento_asesores)
+    neta_mes_global = sum(x["VentaNeta"] for x in cumplimiento_asesores)
+    proy_mes_global = sum(x["ProyeccionCierre"] for x in cumplimiento_asesores)
+
     return jsonify(
         {
             "vacio": False,
@@ -750,6 +919,19 @@ def api_datos():
                 "cobertura_pct": ds["cobertura_pct"],
                 "ticket_promedio": ticket_promedio,
             },
+            "info_habiles": ds["info_habiles"],
+            "mom": ds["mom"],
+            "resumen_metas": {
+                "cuota_total": cuota_total_global,
+                "venta_neta_mes": neta_mes_global,
+                "proyeccion_mes": proy_mes_global,
+                "pct_cumplimiento_total": (neta_mes_global / cuota_total_global * 100) if cuota_total_global > 0 else 0.0,
+                "pct_proyectado_total": (proy_mes_global / cuota_total_global * 100) if cuota_total_global > 0 else 0.0,
+            },
+            "cumplimiento_asesores": cumplimiento_asesores,
+            "clientes_riesgo": ds["clientes_riesgo_df"].head(200).to_dict(orient="records")
+            if not ds["clientes_riesgo_df"].empty
+            else [],
             "top_asesores": top_asesores,
             "por_marca": por_marca,
             "motivos_dev": motivos_dev,
@@ -765,15 +947,48 @@ def api_datos():
     )
 
 
+@app.route("/api/metas", methods=["GET", "POST"])
+def api_metas():
+    user = request.current_user
+    if request.method == "GET":
+        periodo = request.args.get("periodo", datetime.now().strftime("%Y-%m"))[:7]
+        return jsonify({"periodo": periodo, "metas": db.obtener_metas_mes(periodo)})
+
+    if user.get("rol") not in ("admin", "supervisor"):
+        return jsonify({"ok": False, "msg": "No autorizado para editar cuotas."}), 403
+
+    data = request.get_json(silent=True) or {}
+    periodo = str(data.get("periodo", datetime.now().strftime("%Y-%m")))[:7]
+    lista_metas = data.get("metas", [])
+    db.guardar_metas_mes(periodo, lista_metas, usuario_editor=user["username"])
+    return jsonify({"ok": True, "periodo": periodo})
+
+
 @app.route("/api/exportar/<tipo>")
 def api_exportar(tipo):
-    if tipo not in ("no_atendidos", "devoluciones", "atendidos"):
+    if tipo not in ("no_atendidos", "devoluciones", "atendidos", "ejecutivo"):
         return "Tipo inválido", 400
     ds = construir_dataset_filtrado(request.args, request.current_user)
     if ds.get("vacio"):
         return "Sin datos", 400
     output = io.BytesIO()
     etiqueta_dia_venta = ds["dia_fecha_actual"] or ds["target"]
+
+    if tipo == "ejecutivo":
+        df_metas = pd.DataFrame(calcular_tabla_cumplimiento(ds))
+        df_riesgo = ds["clientes_riesgo_df"].drop(columns=["WA"], errors="ignore") if not ds["clientes_riesgo_df"].empty else pd.DataFrame()
+        nombre_arch = f"Informe_Ejecutivo_HB_{ds['info_habiles']['periodo_mes']}.xlsx"
+        with pd.ExcelWriter(output, engine="openpyxl") as writer:
+            df_metas.to_excel(writer, index=False, sheet_name="Metas_y_Proyeccion")
+            df_riesgo.to_excel(writer, index=False, sheet_name="Clientes_en_Riesgo")
+        output.seek(0)
+        return send_file(
+            output,
+            as_attachment=True,
+            download_name=nombre_arch,
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+
     if tipo == "no_atendidos":
         df_exp = ds["no_atendidos_df"].drop(columns=["WA", "LlaveAC"], errors="ignore")
         pref = "No_Atendidos"
@@ -913,5 +1128,5 @@ def index():
 if __name__ == "__main__":
     from waitress import serve
 
-    print("Dashboard HB v2.1 (Producción Waitress) activo en: http://0.0.0.0:5050")
+    print("Dashboard HB v2.2 (Producción Waitress) activo en: http://0.0.0.0:5050")
     serve(app, host="0.0.0.0", port=5050, threads=6)

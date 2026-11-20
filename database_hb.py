@@ -38,7 +38,6 @@ def init_db():
             activo INTEGER DEFAULT 1
         )
     """)
-    # Migración segura si ya existía la tabla v2.0
     cols_existentes = {r["name"] for r in cur.execute("PRAGMA table_info(usuarios)").fetchall()}
     if "clave_temporal" not in cols_existentes:
         cur.execute("ALTER TABLE usuarios ADD COLUMN clave_temporal TEXT DEFAULT ''")
@@ -58,6 +57,18 @@ def init_db():
         print("=" * 55)
         print(f"USUARIO ADMIN CREADO -> Usuario: admin | Clave temporal: {clave_admin}")
         print("=" * 55)
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS metas_comerciales (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            periodo_mes TEXT NOT NULL,
+            asesor_abako TEXT NOT NULL,
+            cuota_mensual REAL NOT NULL DEFAULT 0,
+            actualizado_por TEXT DEFAULT '',
+            fecha_actualizacion TEXT DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(periodo_mes, asesor_abako)
+        )
+    """)
     conn.commit()
     conn.close()
 
@@ -242,3 +253,41 @@ def generar_usuarios_masivos_asesores(lista_asesores_abako):
     conn.commit()
     conn.close()
     return creados
+
+
+def obtener_metas_mes(periodo_mes):
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT asesor_abako, cuota_mensual FROM metas_comerciales WHERE periodo_mes = ?",
+        (periodo_mes,),
+    )
+    rows = cur.fetchall()
+    conn.close()
+    return {r["asesor_abako"].strip().upper(): float(r["cuota_mensual"] or 0) for r in rows}
+
+
+def guardar_metas_mes(periodo_mes, lista_metas, usuario_editor="admin"):
+    conn = get_conn()
+    cur = conn.cursor()
+    for item in lista_metas:
+        asesor = re.sub(r"\s+", " ", str(item.get("asesor_abako", ""))).strip().upper()
+        if not asesor:
+            continue
+        try:
+            cuota = float(item.get("cuota_mensual", 0) or 0)
+        except (ValueError, TypeError):
+            cuota = 0.0
+        cur.execute(
+            """
+            INSERT INTO metas_comerciales (periodo_mes, asesor_abako, cuota_mensual, actualizado_por, fecha_actualizacion)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(periodo_mes, asesor_abako)
+            DO UPDATE SET cuota_mensual = excluded.cuota_mensual,
+                          actualizado_por = excluded.actualizado_por,
+                          fecha_actualizacion = CURRENT_TIMESTAMP
+            """,
+            (periodo_mes, asesor, cuota, usuario_editor),
+        )
+    conn.commit()
+    conn.close()

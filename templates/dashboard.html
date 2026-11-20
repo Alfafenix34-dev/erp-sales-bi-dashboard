@@ -216,6 +216,18 @@
     }
     .pill-ruta { background: #dcfce7; color: #166534; }
     .pill-extra { background: #fef3c7; color: #92400e; }
+    .pill-danger { background: #fee2e2; color: #991b1b; }
+
+    .input-cuota {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      width: 130px;
+      text-align: right;
+      padding: 5px 8px;
+      border: 1px solid #cbd5e1;
+      border-radius: 7px;
+      font-size: 12.5px;
+      font-weight: 600;
+    }
 
     .status-bar {
       background: #eff6ff;
@@ -262,11 +274,12 @@
             Distribuidora HB · Control Comercial
             <span class="badge-rol">{{ user.rol|upper }} · {{ user.nombre }}</span>
           </h1>
-          <p id="subtitulo-estado">Ventas Netas, Devoluciones (NC), Rutero y Cobertura de Cartera</p>
+          <p id="subtitulo-estado">Ventas Netas, Devoluciones (NC), Presupuesto Run-Rate y Cobertura de Cartera</p>
         </div>
       </div>
       <div class="actions">
         <button onclick="limpiarFiltros()">Limpiar filtros</button>
+        <button class="btn-blue" onclick="exportarExcel('ejecutivo')">⬇ Informe Gerencial</button>
         {% if user.rol == 'admin' %}
         <button class="btn-blue" id="btn-ventas-ayer" onclick="extraer('ventas', 'ayer', this)">↻ Ventas Ayer</button>
         <button class="btn-green" id="btn-ventas-hoy" onclick="extraer('ventas', 'diario', this)">↻ Ventas Hoy</button>
@@ -350,6 +363,11 @@
         <div class="sub" id="k-ticket">Ticket prom: $0</div>
       </div>
       <div class="kpi">
+        <div class="label">Proyección Cierre Mes</div>
+        <div class="val" style="color:#0f172a" id="k-proyeccion">$0</div>
+        <div class="sub" id="k-mom">Comparativo MoM: —</div>
+      </div>
+      <div class="kpi">
         <div class="label">Clientes Atendidos</div>
         <div class="val" style="color:var(--primary)" id="k-atendidos">0</div>
         <div class="sub" id="k-cobertura">Cobertura: 0.0%</div>
@@ -363,6 +381,8 @@
 
     <div class="tabs">
       <button class="tab-btn active" onclick="verTab('tab-resumen', this)">Resumen Ejecutivo</button>
+      <button class="tab-btn" onclick="verTab('tab-metas', this)">Presupuesto &amp; Proyección</button>
+      <button class="tab-btn" onclick="verTab('tab-riesgo', this)">Clientes en Riesgo</button>
       <button class="tab-btn" onclick="verTab('tab-atendidos', this)">Clientes Atendidos (Detalle)</button>
       <button class="tab-btn" onclick="verTab('tab-no-atendidos', this)">No Atendidos (Rutero)</button>
       <button class="tab-btn" onclick="verTab('tab-devoluciones', this)">Devoluciones (NC)</button>
@@ -424,6 +444,71 @@
               <tbody id="tb-marcas"></tbody>
             </table>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-metas" class="panel">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2>Cumplimiento de Presupuesto y Proyección de Cierre (Run-Rate)</h2>
+            <div id="lbl-habiles-info" style="color:var(--muted); font-size:12px; margin-top:4px;">Calculando días hábiles...</div>
+          </div>
+          <div class="actions">
+            {% if user.rol in ['admin', 'supervisor'] %}
+            <button class="btn-solid" onclick="guardarMetasTabla()">Guardar Cuotas del Mes</button>
+            {% endif %}
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Grupo</th>
+                <th>Asesor</th>
+                <th class="num">Cuota Mes ($)</th>
+                <th class="num">Venta Neta Acum.</th>
+                <th class="num">% Cumpl.</th>
+                <th class="num">Prom. Diario Hábil</th>
+                <th class="num">Proyección Cierre</th>
+                <th class="num">% Proy.</th>
+                <th class="num">Req. Diario Restante</th>
+              </tr>
+            </thead>
+            <tbody id="tb-metas"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-riesgo" class="panel">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2>Alerta Temprana: Clientes Habituales sin Compra Reciente (&ge; 15 días)</h2>
+            <div style="color:var(--muted); font-size:12px; margin-top:4px;">Ordenados por facturación histórica para priorizar gestión comercial de recuperación</div>
+          </div>
+          <button class="btn-blue" onclick="exportarExcel('ejecutivo')">⬇ Descargar Excel Gerencial</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Grupo</th>
+                <th>Asesor</th>
+                <th>Cód.</th>
+                <th>Cliente</th>
+                <th>Última Compra</th>
+                <th class="num">Días Inactivo</th>
+                <th class="num">Pedidos Hist.</th>
+                <th class="num">Ticket Prom.</th>
+                <th class="num">Venta Histórica</th>
+                <th>Contacto</th>
+              </tr>
+            </thead>
+            <tbody id="tb-riesgo"></tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -597,6 +682,7 @@
     let _timer = null;
     let _fechasDisp = [];
     let _mesesDisp = [];
+    const ES_EDITOR_METAS = {{ 'true' if user.rol in ['admin', 'supervisor'] else 'false' }};
 
     const fmtCOP = v => "$" + Math.round(Number(v || 0)).toLocaleString("es-CO");
     const fmtNum = v => Number(v || 0).toLocaleString("es-CO");
@@ -690,12 +776,27 @@
       poblarSelect("f-marca", d.opciones.marcas || [], "Todas las marcas");
 
       const k = d.kpis;
+      const rm = d.resumen_metas || {};
+      const mom = d.mom || {};
+      const ih = d.info_habiles || {};
+
       document.getElementById("k-bruta").textContent = fmtCOP(k.venta_bruta);
       document.getElementById("k-unidades").textContent = `${fmtNum(k.unidades_total)} unidades`;
       document.getElementById("k-dev").textContent = fmtCOP(k.devolucion_total);
       document.getElementById("k-pct-dev").textContent = `${k.pct_devolucion.toFixed(1)}% sobre venta (${fmtNum(k.unidades_dev)} und)`;
       document.getElementById("k-neta").textContent = fmtCOP(k.venta_neta_real);
       document.getElementById("k-ticket").textContent = `Ticket prom: ${fmtCOP(k.ticket_promedio)}`;
+
+      document.getElementById("k-proyeccion").textContent = fmtCOP(rm.proyeccion_mes);
+      if (mom.tiene_base_anterior) {
+        const signo = mom.variacion_pct >= 0 ? "+" : "";
+        document.getElementById("k-mom").textContent = `vs ${mom.periodo_anterior} (${ih.habiles_transcurridos}d háb): ${signo}${mom.variacion_pct.toFixed(1)}%`;
+      } else if (rm.cuota_total > 0) {
+        document.getElementById("k-mom").textContent = `Proy. cuota mes: ${rm.pct_proyectado_total.toFixed(1)}%`;
+      } else {
+        document.getElementById("k-mom").textContent = `Avance tiempo: ${(ih.pct_tiempo || 0).toFixed(0)}% (${ih.habiles_transcurridos}/${ih.habiles_totales}d)`;
+      }
+
       document.getElementById("k-atendidos").textContent = fmtNum(k.clientes_atendidos);
       document.getElementById("k-cobertura").textContent = `Cobertura cartera: ${k.cobertura_pct.toFixed(1)}%`;
       document.getElementById("k-no-atendidos").textContent = fmtNum(k.total_no_atendidos);
@@ -719,7 +820,7 @@
           <td class="num">${r.DropSize.toFixed(1)}</td>
           <td class="num">${fmtCOP(r.Venta)}</td>
           <td class="num" style="color:var(--red)">${fmtCOP(r.Devolucion)}</td>
-          <td class="num">${r.PctDev.toFixed(1)}%</td>
+          <td class="num" style="color:${r.PctDev >= 4 ? 'var(--red)' : 'inherit'}">${r.PctDev.toFixed(1)}%</td>
         </tr>
       `).join("");
 
@@ -730,6 +831,45 @@
           <td class="num">${fmtCOP(r.Total)}</td>
         </tr>
       `).join("");
+
+      if (ih.periodo_mes) {
+        document.getElementById("lbl-habiles-info").textContent =
+          `Mes ${ih.periodo_mes} · Días hábiles transcurridos: ${ih.habiles_transcurridos} de ${ih.habiles_totales} (${(ih.pct_tiempo || 0).toFixed(1)}%) · Días hábiles restantes: ${ih.habiles_restantes} · Cuota global: ${fmtCOP(rm.cuota_total)}`;
+      }
+      document.getElementById("tb-metas").innerHTML = (d.cumplimiento_asesores || []).map(r => {
+        const pillCls = r.Cuota <= 0 ? "pill" : (r.PctProyectado >= 100 ? "pill pill-ruta" : (r.PctProyectado >= 85 ? "pill pill-extra" : "pill pill-danger"));
+        const celdaCuota = ES_EDITOR_METAS
+          ? `<input type="number" class="input-cuota input-cuota-asesor" data-asesor="${r.Asesor}" value="${Math.round(r.Cuota)}">`
+          : fmtCOP(r.Cuota);
+        return `
+          <tr>
+            <td>${r.Grupo || "—"}</td>
+            <td><strong>${r.Asesor}</strong></td>
+            <td class="num">${celdaCuota}</td>
+            <td class="num">${fmtCOP(r.VentaNeta)}</td>
+            <td class="num">${r.Cuota > 0 ? r.PctCumplimiento.toFixed(1) + "%" : "—"}</td>
+            <td class="num">${fmtCOP(r.PromDiario)}</td>
+            <td class="num"><strong>${fmtCOP(r.ProyeccionCierre)}</strong></td>
+            <td class="num"><span class="${pillCls}">${r.Cuota > 0 ? r.PctProyectado.toFixed(1) + "%" : "Sin cuota"}</span></td>
+            <td class="num">${fmtCOP(r.RequeridoDiario)}</td>
+          </tr>
+        `;
+      }).join("") || `<tr><td colspan="9">Sin asesores registrados para calcular proyección.</td></tr>`;
+
+      document.getElementById("tb-riesgo").innerHTML = (d.clientes_riesgo || []).map(r => `
+        <tr>
+          <td>${r.Grupo || "—"}</td>
+          <td>${r.Asesor}</td>
+          <td>${r["Código Cliente"]}</td>
+          <td><strong>${r.Cliente}</strong></td>
+          <td>${r.UltimaCompra}</td>
+          <td class="num"><span class="pill ${r.DiasSinCompra >= 25 ? 'pill-danger' : 'pill-extra'}">${r.DiasSinCompra} días</span></td>
+          <td class="num">${fmtNum(r.Pedidos)}</td>
+          <td class="num">${fmtCOP(r.TicketHist)}</td>
+          <td class="num"><strong>${fmtCOP(r.VentaHistorica)}</strong></td>
+          <td>${r.WA ? `<a class="btn-green btn" target="_blank" href="https://wa.me/${r.WA}">WhatsApp</a>` : "—"}</td>
+        </tr>
+      `).join("") || `<tr><td colspan="10">Sin clientes con inactividad mayor o igual a 15 días en los reportes cargados.</td></tr>`;
 
       document.getElementById("tb-atendidos").innerHTML = (d.asesor_cliente || []).map(r => `
         <tr>
@@ -787,6 +927,26 @@
           <td class="num"><strong>${fmtCOP(r.Total)}</strong></td>
         </tr>
       `).join("");
+    }
+
+    async function guardarMetasTabla() {
+      const inputs = document.querySelectorAll(".input-cuota-asesor");
+      const metas = Array.from(inputs).map(inp => ({
+        asesor_abako: inp.dataset.asesor,
+        cuota_mensual: parseFloat(inp.value) || 0,
+      }));
+      const periodo = (document.getElementById("f-valor-periodo").value || "").slice(0, 7);
+      const res = await fetch("/api/metas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ periodo, metas }),
+      });
+      if (res.ok) {
+        mostrarEstado(`Cuotas guardadas correctamente para el mes ${periodo}.`);
+        await cargarDatos();
+      } else {
+        mostrarEstado("No se pudieron guardar las cuotas.", true);
+      }
     }
 
     async function extraer(tipo, modo, btn) {
